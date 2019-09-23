@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"html/template"
@@ -11,6 +12,15 @@ import (
 	"strings"
 
 	mw "bitbucket.org/iharsuvorau/mediawiki"
+)
+
+var (
+	// errResponseParsing signifies the type conversion error. Usually, it
+	// means there is unexpected content in the response.
+	errResponseParsing = errors.New("unexpected response")
+
+	// errNotFound signifies not found content.
+	errNotFound = errors.New("not found")
 )
 
 func main() {
@@ -103,18 +113,27 @@ func getSectionIndex(mwURL, page, section string) (string, error) {
 		return "", err
 	}
 
-	data := resp["parse"].(map[string]interface{})
-	sectionsSlice := data["sections"].([]interface{})
+	data, ok := resp["parse"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("%v, mwURL: %s, page: %s, section: %s", errResponseParsing, mwURL, page, section)
+	}
+	sectionsSlice, ok := data["sections"].([]interface{})
+	if !ok {
+		return "", fmt.Errorf("%v, mwURL: %s, page: %s, section: %s", errResponseParsing, mwURL, page, section)
+	}
 
 	for _, v := range sectionsSlice {
-		sectionMap := v.(map[string]interface{})
+		sectionMap, ok := v.(map[string]interface{})
+		if !ok {
+			return "", fmt.Errorf("%v, mwURL: %s, page: %s, section: %s", errResponseParsing, mwURL, page, section)
+		}
 
-		if title := sectionMap["line"].(string); title == section {
+		if title, ok := sectionMap["line"].(string); title == section && ok {
 			return sectionMap["index"].(string), nil
 		}
 	}
 
-	return "", fmt.Errorf("not found")
+	return "", fmt.Errorf("%v, mwURL: %s, page: %s, section: %s", errNotFound, mwURL, page, section)
 }
 
 func getPageSectionContent(mwURL, page, sectionIndex string) (string, error) {
@@ -130,9 +149,18 @@ func getPageSectionContent(mwURL, page, sectionIndex string) (string, error) {
 		return "", err
 	}
 
-	data := resp["parse"].(map[string]interface{})
-	dataMap := data["wikitext"].(map[string]interface{})
-	markup := dataMap["*"].(string)
+	data, ok := resp["parse"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("%v, mwURL: %s, page: %s, section: %s", errResponseParsing, mwURL, page, sectionIndex)
+	}
+	dataMap, ok := data["wikitext"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("%v, mwURL: %s, page: %s, section: %s", errResponseParsing, mwURL, page, sectionIndex)
+	}
+	markup, ok := dataMap["*"].(string)
+	if !ok {
+		return "", fmt.Errorf("%v, mwURL: %s, page: %s, section: %s", errResponseParsing, mwURL, page, sectionIndex)
+	}
 
 	return markup, nil
 }
