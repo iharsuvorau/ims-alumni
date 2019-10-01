@@ -56,13 +56,38 @@ func findItemsByMeta(dspaceBaseURL string, m *meta) ([]*item, error) {
 	return items, err
 }
 
+// filterItemsByMeta compares items meta fields with the provided meta by
+// strings.EqualFold functin for exact match.
 func filterItemsByMeta(items []*item, m *meta) []*item {
 	results := []*item{}
 
 	for _, v := range items {
 		var isMatch bool
 		for _, vv := range v.Metadata {
-			if vv.Key == m.Key && strings.ToLower(vv.Value) == strings.ToLower(m.Value) {
+			if vv.Key == m.Key && strings.EqualFold(vv.Value, m.Value) {
+				isMatch = true
+				break
+			}
+		}
+
+		if isMatch {
+			results = append(results, v)
+		}
+	}
+
+	return results
+}
+
+// filterItemsByMetaContains is the same as filterItemsByMeta but compares meta
+// values not with the strings.EqualFold function, but with the
+// strings.Contains function for not exact match.
+func filterItemsByMetaContains(items []*item, m *meta) []*item {
+	results := []*item{}
+
+	for _, v := range items {
+		var isMatch bool
+		for _, vv := range v.Metadata {
+			if vv.Key == m.Key && strings.Contains(vv.Value, m.Value) {
 				isMatch = true
 				break
 			}
@@ -87,25 +112,4 @@ func getItemMetaValue(item *item, key string) interface{} {
 		}
 	}
 	return nil
-}
-
-func getUserTheses(apiURL, firstName, lastName string) ([]*item, error) {
-	var name = fmt.Sprintf("%s, %s", lastName, firstName)
-
-	mAuthor := meta{
-		Key:   "dc.contributor.author",
-		Value: name,
-	}
-	items, err := findItemsByMeta(apiURL, &mAuthor)
-	if err != nil {
-		return nil, err
-	}
-
-	mThesis := meta{
-		Key:   "dc.type",
-		Value: "Thesis", // what other values are useful there?
-	}
-	items = filterItemsByMeta(items, &mThesis)
-
-	return items, nil
 }

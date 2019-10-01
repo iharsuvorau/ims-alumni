@@ -21,7 +21,23 @@ var (
 
 	// errNotFound signifies not found content.
 	errNotFound = errors.New("not found")
+
+	// regular expressions for templates parsing
+
+	// capturing groups: username, name, description
+	reTeamMember = regexp.MustCompile(`{{\s*TeamMember\s*\|\s*(.*)\s*\|\s*(.*)\s*\|\s*(.*)}}\s*`)
+	// capturing groups: username, name, description, thesis
+	reAlumnus = regexp.MustCompile(`{{\s*Alumnus\s*\|\s*(.*)\s*\|\s*(.*)\s*\|\s*(.*)\s*\|\s*(.*)}}\s*`)
 )
+
+type user struct {
+	FullName, UserName, Description string
+	Theses                          []*thesis
+}
+
+type thesis struct {
+	URL, Title, Year string
+}
 
 func main() {
 	mwURL := flag.String("mediawiki", "https://ims.ut.ee", "mediawiki URL")
@@ -49,7 +65,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	users := findUsersFromTemplate(content)
+	users := findUsersFromTemplate(reTeamMember, content)
 
 	// do not proceed if nobody to fetch and nothing to update
 	if len(users) == 0 {
@@ -165,21 +181,8 @@ func getPageSectionContent(mwURL, page, sectionIndex string) (string, error) {
 	return markup, nil
 }
 
-type user struct {
-	FullName, UserName, Description string
-	Theses                          []*thesis
-}
-type thesis struct {
-	URL, Title, Year string
-}
-
-// findUsersFromTemplate returns users with the TeamMember template from a page
-// with a bit modified content for further usage in the Alumnus template
-// (removing of whitespaces from both sides, removing of punctuation at the end
-// of description line).
-func findUsersFromTemplate(s string) []*user {
-	reg := regexp.MustCompile(`{{\s*TeamMember\s*\|\s*(.*)\s*\|\s*(.*)\s*\|\s*(.*)}}\s*`) // username, name, description
-	res := reg.FindAllStringSubmatch(s, -1)
+func findUsersFromTemplate(re *regexp.Regexp, s string) []*user {
+	res := re.FindAllStringSubmatch(s, -1)
 
 	users := make([]*user, len(res))
 	for i, v := range res {
@@ -192,4 +195,104 @@ func findUsersFromTemplate(s string) []*user {
 	}
 
 	return users
+}
+
+func getUserTheses(apiURL, firstName, lastName string) ([]*item, error) {
+	var name = fmt.Sprintf("%s, %s", lastName, firstName)
+
+	mAuthor := meta{
+		Key:   "dc.contributor.author",
+		Value: name,
+	}
+	items, err := findItemsByMeta(apiURL, &mAuthor)
+	if err != nil {
+		return nil, err
+	}
+
+	mThesis := meta{
+		Key:   "dc.type",
+		Value: "Thesis",
+	}
+	items = filterItemsByMeta(items, &mThesis)
+
+	return items, nil
+}
+
+func getUserThesesIMS(apiURL, firstName, lastName string, advisors []*user) ([]*item, error) {
+	var name = fmt.Sprintf("%s, %s", lastName, firstName)
+
+	mAuthor := &meta{
+		Key:   "dc.contributor.author",
+		Value: name,
+	}
+	items, err := findItemsByMeta(apiURL, mAuthor)
+	if err != nil {
+		return nil, err
+	}
+
+	// filter out only theses
+	mThesis := &meta{
+		Key:   "dc.type",
+		Value: "Thesis",
+	}
+	items = filterItemsByMeta(items, mThesis)
+
+	// filter out theses with advisors only from IMS
+	var mAdvisor = &meta{Key: "dc.contributor.advisor"}
+	var itemsWithAdvisors []*item
+	for _, advisor := range advisors {
+		nameParts := nameSplit(advisor.FullName)
+		mAdvisor.Value = fmt.Sprintf("%s, %s", nameParts[1], nameParts[0])
+		itemsWithAdvisors = filterItemsByMetaContains(items, mAdvisor)
+		// we are insterested in at least one encounter with any advisor
+		if len(itemsWithAdvisors) > 0 {
+			break
+		}
+	}
+
+	return itemsWithAdvisors, nil
+}
+
+func getAdvisorsIMS(mwURL string) ([]*user, error) {
+	const (
+		advisorsPage1    = "People"
+		advisorsSection1 = "Staff"
+		advisorsSection2 = "PhD Students"
+		advisorsPage2    = "Alumni"
+	)
+	sectionIndexStaff, err := getSectionIndex(mwURL, advisorsPage1, advisorsSection1)
+	if err != nil {
+		return nil, err
+	}
+	sectionIndexPhD, err := getSectionIndex(mwURL, advisorsPage1, advisorsSection2)
+	if err != nil {
+		return nil, err
+	}
+	sectionIndexPhDAlumni, err := getSectionIndex(mwURL, advisorsPage2, advisorsSection2)
+	if err != nil {
+		return nil, err
+	}
+
+	contentStaff, err := getPageSectionContent(mwURL, advisorsPage1, sectionIndexStaff)
+	if err != nil {
+		return nil, err
+	}
+	contentPhD, err := getPageSectionContent(mwURL, advisorsPage1, sectionIndexPhD)
+	if err != nil {
+		return nil, err
+	}
+	contentPhDAlumni, err := getPageSectionContent(mwURL, advisorsPage2, sectionIndexPhDAlumni)
+	if err != nil {
+		return nil, err
+	}
+
+	advisorsStaff := findUsersFromTemplate(reTeamMember, contentStaff)
+	advisorsPhD := findUsersFromTemplate(reTeamMember, contentPhD)
+	advisorsPhDAlumni := findUsersFromTemplate(reAlumnus, contentPhDAlumni)
+
+	advisors := []*user{}
+	advisors = append(advisors, advisorsStaff...)
+	advisors = append(advisors, advisorsPhD...)
+	advisors = append(advisors, advisorsPhDAlumni...)
+	return advisors, nil
 }
