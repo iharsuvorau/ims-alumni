@@ -2,9 +2,10 @@
 {{- range . }}
 {{printf "{{Alumnus|%s|%s|%s" .UserName .FullName .Description }}
 {{- if .ThesesString }}|{{.ThesesString}}{{else}}
-{{- if gt (len .Theses) 0}}
+{{- if gt (len .Theses) 0 -}}
+{{printf "|"}}
 {{- range .Theses -}}
-{{printf "|[%s %s], %s. " .URL .Title .Year}}
+{{printf "[%s %s], %s. " .URL .Title .Year}}
 {{- end }}{{end -}}
 {{end -}}
 {{print "}}"}}
