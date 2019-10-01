@@ -33,6 +33,10 @@ var (
 type user struct {
 	FullName, UserName, Description string
 	Theses                          []*thesis
+
+	// ThesesString is used to read the markup from Alumni page without
+	// changing its content.
+	ThesesString string
 }
 
 type thesis struct {
@@ -90,6 +94,10 @@ func main() {
 		}
 		v.Theses = theses
 	}
+
+	// append already existing alumni on the page
+	existingAlumni := findUsersFromTemplate(reAlumnus, content)
+	users = append(users, existingAlumni...)
 
 	// render final markup with the Alumnus template, so after repeated
 	// updates already updated users are not affected
@@ -186,11 +194,18 @@ func findUsersFromTemplate(re *regexp.Regexp, s string) []*user {
 
 	users := make([]*user, len(res))
 	for i, v := range res {
+		// getting already existing data about an alumnus' theses
+		var theses string
+		if len(v) >= 5 {
+			theses = strings.Trim(v[4], " ")
+		}
+
 		users[i] = &user{
 			FullName: strings.Trim(v[2], " "),
 			UserName: strings.Trim(v[1], " "),
 			// removing the dot at the end if it use to append theses via the template
-			Description: strings.TrimRight(strings.Trim(v[3], " "), "."),
+			Description:  strings.TrimRight(strings.Trim(v[3], " "), "."),
+			ThesesString: theses,
 		}
 	}
 
