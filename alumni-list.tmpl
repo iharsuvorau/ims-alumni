@@ -1,11 +1,11 @@
-{{print "{{Team|class=alumni|"}}
+{{print "{{Team|"}}
 {{- range . }}
 {{printf "{{Alumnus|%s|%s|%s" .UserName .FullName .Description }}
 {{- if .ThesesString }}|{{.ThesesString}}{{else}}
 {{- if gt (len .Theses) 0 -}}
 {{printf "|"}}
 {{- range .Theses -}}
-{{printf "[%s %s], %s. " .URL .Title .Year}}
+{{printf "<br/>[%s Thesis], %s. " .URL .Year}}
 {{- end }}{{end -}}
 {{end -}}
 {{print "}}"}}

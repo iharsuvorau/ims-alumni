@@ -5,11 +5,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"html/template"
 	"log"
 	"net/url"
 	"regexp"
 	"strings"
+	"text/template"
 
 	mw "bitbucket.org/iharsuvorau/mediawiki"
 )
