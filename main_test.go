@@ -76,6 +76,13 @@ func Test_getUserThesesIMS(t *testing.T) {
 			wantErr:      false,
 			resultsCount: 0,
 		},
+		{
+			name:         "C",
+			firstName:    "Madis Kaspar",
+			lastName:     "Nigol",
+			wantErr:      false,
+			resultsCount: 1,
+		},
 	}
 
 	advisors, err := getAdvisorsIMS(mwBaseURL)

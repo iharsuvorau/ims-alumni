@@ -76,10 +76,15 @@ func main() {
 		return
 	}
 
+	advisors, err := getAdvisorsIMS(*mwURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// download theses and upate users
 	for _, v := range users {
 		name := nameSplit(v.FullName)
-		items, err := getUserTheses(*dspaceURL, name[0], name[1])
+		items, err := getUserThesesIMS(*dspaceURL, name[0], name[1], advisors)
 		if err != nil {
 			log.Fatal(err)
 		}
