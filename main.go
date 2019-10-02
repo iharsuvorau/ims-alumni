@@ -217,27 +217,6 @@ func findUsersFromTemplate(re *regexp.Regexp, s string) []*user {
 	return users
 }
 
-func getUserTheses(apiURL, firstName, lastName string) ([]*item, error) {
-	var name = fmt.Sprintf("%s, %s", lastName, firstName)
-
-	mAuthor := meta{
-		Key:   "dc.contributor.author",
-		Value: name,
-	}
-	items, err := findItemsByMeta(apiURL, &mAuthor)
-	if err != nil {
-		return nil, err
-	}
-
-	mThesis := meta{
-		Key:   "dc.type",
-		Value: "Thesis",
-	}
-	items = filterItemsByMeta(items, &mThesis)
-
-	return items, nil
-}
-
 func getUserThesesIMS(apiURL, firstName, lastName string, advisors []*user) ([]*item, error) {
 	var name = fmt.Sprintf("%s, %s", lastName, firstName)
 
