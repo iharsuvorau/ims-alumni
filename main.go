@@ -31,12 +31,14 @@ var (
 )
 
 type user struct {
+	// The fields are populated with information from the wiki template.
 	FullName, UserName, Description string
-	Theses                          []*thesis
-
 	// ThesesString is used to read the markup from Alumni page without
 	// changing its content.
 	ThesesString string
+
+	// Theses stores information from DSpace about theses.
+	Theses []*thesis
 }
 
 type thesis struct {
@@ -100,7 +102,7 @@ func main() {
 		v.Theses = theses
 	}
 
-	// append already existing alumni on the page
+	// append already existing alumni on the page which shouldn't be modified
 	existingAlumni := findUsersFromTemplate(reAlumnus, content)
 	users = append(users, existingAlumni...)
 
